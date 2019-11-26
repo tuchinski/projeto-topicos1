@@ -8,7 +8,7 @@ import json
 from paho.mqtt import publish
 #### CONFIGURAÇOES ####
 hotword = 'helena'
-with open('rosie-python-assistente-f90598132ba4.json') as credenciais_google:
+with open('python-assist-260122-f472eb2d9e1e.json') as credenciais_google:
     credenciais_google = credenciais_google.read()
 
 #### FUNÇOES PRINCIPAIS ####
@@ -42,7 +42,6 @@ def executa_comandos(trigger):
         ultimas_noticias()
     elif 'toca' in trigger and 'senhora' in trigger:
         playlists('senhora')
-
     elif 'tempo agora' in trigger:
         previsao_tempo(tempo=True)
     elif 'temperatura hoje' in trigger:
@@ -51,6 +50,8 @@ def executa_comandos(trigger):
         publica_mqtt('office/iluminacao/status', '1')
     elif 'desativa a luz' in trigger:
         publica_mqtt('office/iluminacao/status', '0')
+    elif 'pesquisar' in trigger:
+        pesquisa(trigger)
     else:
         mensagem = trigger.strip(hotword)
         cria_audio(mensagem)
@@ -72,6 +73,23 @@ def ultimas_noticias():
         mensagem = item.title.text
         cria_audio(mensagem)
 
+def pesquisa(trigger):
+    command = trigger.split(' ')
+    if(command[-2] == 'spotify'):
+        chave = ' '.join(command[2:-3])
+        print(chave)
+        responde('pesquisando_spotify')
+        browser.open("https://open.spotify.com/search/" + chave)
+    elif(command[-2] == 'google'):
+        chave = ' '.join(command[2:-3])
+        responde('pesquisando_google')
+        browser.open('https://www.google.com/search?q=' + chave)
+    elif(command[-2] == 'youtube'):
+        chave = ' '.join(command[2:-3])
+        responde('pesquisando')
+        browser.open('https://www.youtube.com/results?search_query=' + chave)
+
+
 def playlists(album):
     if album == 'senhora':
         browser.open("https://open.spotify.com/track/0TK2YIli7K1leLovkQiNik")
@@ -84,6 +102,7 @@ def previsao_tempo(tempo=False, minmax=False):
     minima = clima['main']['temp_min']
     maxima = clima['main']['temp_max']
     descricao = clima['weather'][0]['description']
+    print()
     if tempo:
         mensagem = f'No momento fazem {temperatura} graus com: {descricao}'
         cria_audio(mensagem)
