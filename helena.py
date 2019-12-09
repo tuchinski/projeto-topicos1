@@ -8,7 +8,7 @@ import json
 from paho.mqtt import publish
 #### CONFIGURAÇOES ####
 hotword = 'helena'
-with open('python-assist-260122-f472eb2d9e1e.json') as credenciais_google:
+with open('python-assist-73999abe1178.json') as credenciais_google:
     credenciais_google = credenciais_google.read()
 
 #### FUNÇOES PRINCIPAIS ####
