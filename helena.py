@@ -8,11 +8,15 @@ import json
 from paho.mqtt import publish
 #### CONFIGURAÇOES ####
 hotword = 'helena'
-with open('python-assist-73999abe1178.json') as credenciais_google:
+assunto_atual = ''
+qtde_noticias = 1
+ultima_cidade = ''
+with open('python-assist-260122-c2cabb1fdb47.json') as credenciais_google:
     credenciais_google = credenciais_google.read()
 
+
 #### FUNÇOES PRINCIPAIS ####
-def monitora_audio():
+def monitora_audio():   
     microfone = sr.Recognizer()
     with sr.Microphone() as source:
         while True:
@@ -38,26 +42,70 @@ def responde(arquivo):
     call(['mpg123', 'audios/' + arquivo + '.mp3'])
 
 def executa_comandos(trigger):
-    if 'notícias' in trigger:
-        ultimas_noticias()
+    if 'notícias sobre essa cidade' in trigger:
+        print('entrou noticias da cidade!@!@!@!@!@!@@!@!@@!@!@')
+        ultimas_noticias(trigger,contexto='cidade')
+    elif ('notícias' in trigger) or ('notícia' in trigger):
+        ultimas_noticias(trigger)
     elif 'toca' in trigger and 'senhora' in trigger:
         playlists('senhora')
     elif 'tempo agora' in trigger:
-        previsao_tempo(tempo=True)
+        print("dfghjkl Tempo agora")
+        previsao_temp(True,False,trigger)
     elif 'temperatura hoje' in trigger:
-        previsao_tempo(minmax=True)
+        print("dfghjkl Tempo agora")
+        previsao_temp(False,True,trigger)
     elif 'liga a luz' in trigger:
         publica_mqtt('office/iluminacao/status', '1')
     elif 'desativa a luz' in trigger:
         publica_mqtt('office/iluminacao/status', '0')
     elif 'pesquisar' in trigger:
         pesquisa(trigger)
+    elif 'tchau' in trigger:
+        responde('tchau')
+        exit(1)
+
+        
     else:
         mensagem = trigger.strip(hotword)
         cria_audio(mensagem)
         print('Comando invalido', mensagem)
         responde('comando_invalido')
 
+
+def previsao_temp(tempo=False, minmax=False,trigger=None):
+    command = trigger.split(' ')
+    count = 0
+    print(command)
+    for palavra in command:
+        if palavra == 'temperatura' or palavra == 'tempo':
+            break
+        else:
+            count = count + 1
+    cidade = ' '.join(command[count+3:-1])
+    global ultima_cidade
+    ultima_cidade = cidade
+    print(cidade)
+    
+    
+    # print(command)
+    site = get('http://api.openweathermap.org/data/2.5/weather?q=' + cidade + '&APPID=c423254affe44819bcdbd411425bd2bf&units=metric&lang=pt')
+    # site = get('https://api.openweathermap.org/data/2.5/weather?id=3467717&APPID=c423254affe44819bcdbd411425bd2bf&units=metric&lang=pt')
+    clima = site.json()
+    print(clima)
+    #print(json.dumps(clima, indent=4))
+    temperatura = clima['main']['temp']
+    minima = clima['main']['temp_min']
+    maxima = clima['main']['temp_max']
+    descricao = clima['weather'][0]['description']
+    print()
+    if tempo:
+        mensagem = f'No momento fazem {temperatura} graus com: {descricao} em {cidade}'
+        cria_audio(mensagem)
+    if minmax:
+        mensagem = f'Minima de {minima} e maxima de {maxima} em {cidade}'
+        cria_audio(mensagem)
+        
 
 def cria_audio(mensagem):
     tts = gTTS(mensagem, lang='pt-br')
@@ -66,12 +114,37 @@ def cria_audio(mensagem):
     call(['mpg123', 'audios/mensagem.mp3'])
 #### FUNÇOES COMANDOS ####
 
-def ultimas_noticias():
-    site = get('https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419')
+def ultimas_noticias(trigger,contexto = None):
+    command = trigger.split(' ')
+    count = 0
+    global ultima_cidade
+    print("city: " + ultima_cidade)
+    print(command)
+    global qtde_noticias
+    global assunto_atual
+    
+    if contexto == None:
+        for palavra in command:
+            if palavra == 'notícia' or palavra == 'notícias':
+                break
+            else:
+                count = count + 1
+        assunto = ' '.join(command[count+2:-1])
+    elif contexto == 'cidade':
+        assunto = ultima_cidade
+    else:
+        assunto = assunto_atual
+
+    print(assunto)
+    site = get('https://news.google.com/rss/search?q=' + assunto + '&hl=pt-BR&gl=BR')
+    print(site)
+    # site = get('https://news.google.com/rss?hl=pt-BR&gl=BR&ceid=BR:pt-419')
     noticias = BeautifulSoup(site.text, 'html.parser')
-    for item in noticias.findAll('item')[:2]:
+
+    for item in noticias.findAll('item')[:qtde_noticias]:
         mensagem = item.title.text
         cria_audio(mensagem)
+    qtde_noticias = qtde_noticias + 2
 
 def pesquisa(trigger):
     command = trigger.split(' ')
@@ -109,6 +182,7 @@ def previsao_tempo(tempo=False, minmax=False):
     if minmax:
         mensagem = f'Minima de {minima} e maxima de {maxima}'
         cria_audio(mensagem)
+
 def publica_mqtt(topic, payload):
     publish.single(topic, payload=payload, qos=1, retain=True, hostname="postman.cloudmqtt.com",
     port=12189, client_id="helena", auth={'username': 'xvsizqmq', 'password': '27iCsnbmm1fM'})
